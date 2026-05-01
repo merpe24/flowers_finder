@@ -49,6 +49,7 @@ try:
             continue	
         
         print(f"\n🎯 SELECTED FLOWER: {target_flower.upper()}")
+        print(" YOU HAVE 60 SECONDS. GO GO GO!!!")
         print("📷 Point the camera at QR codes to find the match...")
         
         
@@ -58,8 +59,23 @@ try:
         # INNER LOOP: Find the QR Code
         # ------------------------------------------
         flower_found = False
+
+        time_limit = 60
+        start_time = time.time()
         
         while not flower_found:
+            # Check the clock
+            time_left = time_limit - (time.time() - start_time)
+            
+            if time_left <= 0:
+                print(f"\n GAME OVER! You ran out of time looking for the {target_flower.upper()}.")
+                print("Try again!")
+                time.sleep(3)
+                break
+      
+            if int(time_left) % 5 == 0 and int(time_left) != 0:
+                print(f"Time left: {int(time_left)} secondes...", end='\r')
+
             # Grab a frame
             try:
                 img = picam2.capture_array()
