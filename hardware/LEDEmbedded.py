@@ -82,6 +82,9 @@ try:
             if time_left <= 0:
                 print(f"\n GAME OVER! You ran out of time looking for the {target_flower.upper()}.")
                 print("Try again!")
+                GPIO.output(RED_LED,GPIO.HIGH)
+                time.sleep(1.5)
+                GPIO.output(RED_LED,GPIO.LOW)
                 time.sleep(3)
                 break
       
@@ -107,16 +110,16 @@ try:
                 if scanned_flower == target_flower:
                     print(f"✅NOICE, you found the {target_flower.upper()}!")
                     flower_found = True 
-                    GPIO.Output(GREEN_LED,GPIO.HIGH)
+                    GPIO.output(GREEN_LED,GPIO.HIGH)
                     time.sleep(2) 
-                    GPIO.Output(GREEN_LED,GPIO.LOW)
+                    GPIO.output(GREEN_LED,GPIO.LOW)
                 
                 else:
                     print(f"❌ Wrong flower. That is a {scanned_flower.upper()}. Keep looking!")
                     # TODO: Work with led to (Red led? buzzer noise?)
-                    GPIO.Output(RED_LED,GPIO.HIGH)
+                    GPIO.output(RED_LED,GPIO.HIGH)
                     time.sleep(1.5)
-                    GPIO.Output(RED_LED,GPIO.LOW)
+                    GPIO.output(RED_LED,GPIO.LOW)
 
 except KeyboardInterrupt:
     print("\n🛑 BYE BYEEEE...")
