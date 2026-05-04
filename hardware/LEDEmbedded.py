@@ -99,9 +99,10 @@ try:
             
             if img is None:
                 continue
-            
+            gray_img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
             # Look for QR
-            data, bbox, _ = detector.detectAndDecode(img)
+            data, bbox, _ = detector.detectAndDecode(gray_img)
             
             if bbox is not None and data:
                 scanned_flower = data.strip().lower()
