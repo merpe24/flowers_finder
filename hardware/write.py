@@ -12,7 +12,7 @@ try:
         print("\nAttempting to write...")
         reader.write(text)
         
-        time.sleep(0.5) 
+        time.sleep(0.5)     
         
         print("Verifying data...")
         id, written_text = reader.read()
