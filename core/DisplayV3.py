@@ -79,7 +79,6 @@ FLOWERS = [
     {"id":"lavender", "name":"Lavender", "hint":"Not a Daisy",  "fact":"Makes you feel calm!",  "color":(167,139,250),"center":(91,33,182),"petals":6},
     {"id":"daisy",    "name":"Daisy",    "hint":"Not Lavender", "fact":"Loves sunny fields!",   "color":(226,232,240),"center":(180,160,50),"petals":10},
     {"id":"orchid",   "name":"Orchid",   "hint":"Not a Tulip",  "fact":"Lives 100 years!",      "color":(216,180,254),"center":(126,34,206),"petals":5},
-    {"id":"potato", "name":"Potato", "hint":"Not a flower", "fact":"Technically a vegetable!", "color":(210,170,90), "center":(160,120,50), "petals":6},
 ]
 FLOWER_MAP = {f["id"]: f for f in FLOWERS}
 
@@ -688,9 +687,16 @@ class App:
         self.clock   = pygame.time.Clock()
         self.state   = GameState()
 
-        # Hardware — GPIO must be set to BCM before RFID/SimpleMFRC522 runs
+        # Init RFID first — SimpleMFRC522 calls GPIO.setmode(BCM) internally
+        # We must NOT call setmode before it, or setup pins it already owns
+        self.rfid    = RFID()
+
+        # Now setup ONLY our own pins (LED + Buzzer)
         if HARDWARE_AVAILABLE:
-            GPIO.setmode(GPIO.BCM)
+            try:
+                GPIO.setmode(GPIO.BCM)
+            except ValueError:
+                pass
             GPIO.setup(GREEN_LED, GPIO.OUT)
             GPIO.setup(RED_LED,   GPIO.OUT)
             GPIO.setup(BUZZER,    GPIO.OUT)
@@ -699,7 +705,6 @@ class App:
             GPIO.output(BUZZER,    GPIO.LOW)
 
         self.camera  = Camera()
-        self.rfid    = RFID()
         self.qr_q    = queue.Queue()
         self.qr_scan = QRScanner(self.camera, self.qr_q)
 
