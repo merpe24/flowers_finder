@@ -9,6 +9,18 @@ from mfrc522 import SimpleMFRC522
 # 1. INITIALIZE HARDWARE
 # ==========================================
 
+#Declaring LED pins
+GREEN_LED = 17 
+RED_LED = 27
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(GREEN_LED, GPIO.OUT)
+GPIO.setup(RED_LED, GPIO.OUT)
+
+# Ensure LEDs start OFF
+GPIO.output(GREEN_LED, GPIO.LOW)
+GPIO.output(RED_LED, GPIO.LOW)
+
 # Setup RFID
 reader = SimpleMFRC522()
 
@@ -70,6 +82,9 @@ try:
             if time_left <= 0:
                 print(f"\n GAME OVER! You ran out of time looking for the {target_flower.upper()}.")
                 print("Try again!")
+                GPIO.output(RED_LED,GPIO.HIGH)
+                time.sleep(1.5)
+                GPIO.output(RED_LED,GPIO.LOW)
                 time.sleep(3)
                 break
       
@@ -84,9 +99,10 @@ try:
             
             if img is None:
                 continue
-            
+            gray_img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
             # Look for QR
-            data, bbox, _ = detector.detectAndDecode(img)
+            data, bbox, _ = detector.detectAndDecode(gray_img)
             
             if bbox is not None and data:
                 scanned_flower = data.strip().lower()
@@ -94,17 +110,17 @@ try:
                 # Check for a match
                 if scanned_flower == target_flower:
                     print(f"✅NOICE, you found the {target_flower.upper()}!")
-                    # TODO: Communicate with led or buzzer (Green led if success?)
-                    
                     flower_found = True 
+                    GPIO.output(GREEN_LED,GPIO.HIGH)
                     time.sleep(2) 
+                    GPIO.output(GREEN_LED,GPIO.LOW)
                 
                 else:
                     print(f"❌ Wrong flower. That is a {scanned_flower.upper()}. Keep looking!")
                     # TODO: Work with led to (Red led? buzzer noise?)
-                    
-                    
+                    GPIO.output(RED_LED,GPIO.HIGH)
                     time.sleep(1.5)
+                    GPIO.output(RED_LED,GPIO.LOW)
 
 except KeyboardInterrupt:
     print("\n🛑 BYE BYEEEE...")

@@ -12,17 +12,40 @@ from mfrc522 import SimpleMFRC522
 #Declaring LED pins
 GREEN_LED = 17 
 RED_LED = 27
+BUZZER = 22
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(GREEN_LED, GPIO.OUT)
 GPIO.setup(RED_LED, GPIO.OUT)
-
+ 
 # Ensure LEDs start OFF
 GPIO.output(GREEN_LED, GPIO.LOW)
 GPIO.output(RED_LED, GPIO.LOW)
-
+GPIO.setup(BUZZER, GPIO.OUT)
+GPIO.output(BUZZER, GPIO.LOW) 
 # Setup RFID
+def buzz(duration=0.2):
+    GPIO.output(BUZZER, GPIO.HIGH)
+    time.sleep(duration)
+    GPIO.output(BUZZER, GPIO.LOW)
+
+def success_sound():
+    # happy double beep
+    buzz(0.2)
+    time.sleep(0.1)
+    buzz(0.2)
+
+def error_sound():
+    # longer sad buzz
+    buzz(0.5)
+
+def timeout_sound():
+    # fast triple beep
+    for _ in range(3):
+        buzz(0.2)
+        time.sleep(0.1)
 reader = SimpleMFRC522()
+
 
 # Setup Camera
 picam2 = Picamera2()
@@ -49,6 +72,7 @@ try:
 
         if not card_text:
             print(" READ ERROR: Please try again")
+            error_sound()
             time.sleep(1)
             continue
         
@@ -57,6 +81,7 @@ try:
 
         if not target_flower:
             print(" READ ERROR: Card is blank or missed. Try again.")
+            error_sound()
             time.sleep(1)
             continue	
         
@@ -81,6 +106,7 @@ try:
             
             if time_left <= 0:
                 print(f"\n GAME OVER! You ran out of time looking for the {target_flower.upper()}.")
+                timeout_sound()
                 print("Try again!")
                 GPIO.output(RED_LED,GPIO.HIGH)
                 time.sleep(1.5)
@@ -110,6 +136,7 @@ try:
                 # Check for a match
                 if scanned_flower == target_flower:
                     print(f"✅NOICE, you found the {target_flower.upper()}!")
+                    success_sound()
                     flower_found = True 
                     GPIO.output(GREEN_LED,GPIO.HIGH)
                     time.sleep(2) 
@@ -117,6 +144,7 @@ try:
                 
                 else:
                     print(f"❌ Wrong flower. That is a {scanned_flower.upper()}. Keep looking!")
+                    error_sound()
                     # TODO: Work with led to (Red led? buzzer noise?)
                     GPIO.output(RED_LED,GPIO.HIGH)
                     time.sleep(1.5)
