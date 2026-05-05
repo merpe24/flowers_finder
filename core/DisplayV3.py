@@ -31,7 +31,7 @@ except ImportError:
 
 try:
     import RPi.GPIO as GPIO
-    from mfrc522 import SimpleMFRC522
+    from mfrc522 import SimpleMFRC522, MFRC522 as _MFRC522
     HARDWARE_AVAILABLE = True
 except ImportError:
     HARDWARE_AVAILABLE = False
@@ -212,7 +212,11 @@ class RFID:
         self.reader = None
         if HARDWARE_AVAILABLE:
             try:
-                self.reader = SimpleMFRC522()
+                # Bypass SimpleMFRC522.__init__ which unconditionally calls
+                # GPIO.setmode(GPIO.BOARD), conflicting with our BCM setup.
+                reader = SimpleMFRC522.__new__(SimpleMFRC522)
+                reader.READER = _MFRC522(pin_mode=GPIO.BCM)
+                self.reader = reader
                 print("[RFID] Ready")
             except Exception as e:
                 print(f"[RFID] Failed: {e}")
@@ -683,24 +687,22 @@ class App:
         self.clock   = pygame.time.Clock()
         self.state   = GameState()
 
-        # Hardware
-        self.camera  = Camera()
-        self.rfid    = RFID()
-        self.qr_q    = queue.Queue()
-        self.qr_scan = QRScanner(self.camera, self.qr_q)
-
-        self.current = WaitingScreen(self)
-
-        # GPIO init (from BLEmbedded.py)
+        # Hardware — GPIO must be set to BCM before RFID/SimpleMFRC522 runs
         if HARDWARE_AVAILABLE:
-            if GPIO.getmode() is None:
-                GPIO.setmode(GPIO.BCM)
+            GPIO.setmode(GPIO.BCM)
             GPIO.setup(GREEN_LED, GPIO.OUT)
             GPIO.setup(RED_LED,   GPIO.OUT)
             GPIO.setup(BUZZER,    GPIO.OUT)
             GPIO.output(GREEN_LED, GPIO.LOW)
             GPIO.output(RED_LED,   GPIO.LOW)
             GPIO.output(BUZZER,    GPIO.LOW)
+
+        self.camera  = Camera()
+        self.rfid    = RFID()
+        self.qr_q    = queue.Queue()
+        self.qr_scan = QRScanner(self.camera, self.qr_q)
+
+        self.current = WaitingScreen(self)
 
         # RFID thread (blocking read, like read.py)
         self._rfid_q       = queue.Queue()
