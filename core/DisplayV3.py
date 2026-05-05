@@ -185,7 +185,8 @@ class Camera:
         try:
             img = self.cam.capture_array()
             if img is None: return None
-            # From BLEmbedded.py — convert to gray for better QR detection
+            if img.ndim == 3 and img.shape[2] == 4:
+                img = img[:, :, :3]
             gray_img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
             return gray_img
         except Exception:
@@ -749,6 +750,9 @@ class App:
             try:
                 fl = self._rfid_q.get_nowait()
                 self.state.round_reset(fl)
+                while not self.qr_q.empty():
+                    try: self.qr_q.get_nowait()
+                    except queue.Empty: break
                 self.current = SearchingScreen(self, fl)
                 print(f"[RFID] Flower: {fl['name'].upper()}")
             except queue.Empty:
