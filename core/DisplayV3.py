@@ -693,7 +693,8 @@ class App:
 
         # GPIO init (from BLEmbedded.py)
         if HARDWARE_AVAILABLE:
-            GPIO.setmode(GPIO.BCM)
+            if GPIO.getmode() is None:
+                GPIO.setmode(GPIO.BCM)
             GPIO.setup(GREEN_LED, GPIO.OUT)
             GPIO.setup(RED_LED,   GPIO.OUT)
             GPIO.setup(BUZZER,    GPIO.OUT)
