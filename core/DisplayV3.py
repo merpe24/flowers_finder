@@ -79,6 +79,7 @@ FLOWERS = [
     {"id":"lavender", "name":"Lavender", "hint":"Not a Daisy",  "fact":"Makes you feel calm!",  "color":(167,139,250),"center":(91,33,182),"petals":6},
     {"id":"daisy",    "name":"Daisy",    "hint":"Not Lavender", "fact":"Loves sunny fields!",   "color":(226,232,240),"center":(180,160,50),"petals":10},
     {"id":"orchid",   "name":"Orchid",   "hint":"Not a Tulip",  "fact":"Lives 100 years!",      "color":(216,180,254),"center":(126,34,206),"petals":5},
+    {"id":"potato", "name":"Potato", "hint":"Not a flower", "fact":"Technically a vegetable!", "color":(210,170,90), "center":(160,120,50), "petals":6},
 ]
 FLOWER_MAP = {f["id"]: f for f in FLOWERS}
 
