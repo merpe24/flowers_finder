@@ -419,6 +419,9 @@ class WaitingScreen(Screen):
 
     def on_tap(self, pos=None):
         if self.started:
+            # Only the back button can cancel back to the start buttons
+            if pos is None or self.btn_cancel.collidepoint(pos):
+                self.started = False
             return
         if pos is None:
             self.started = True
@@ -637,7 +640,8 @@ _COLL_HEAD_H = 58
 class CollectionScreen(Screen):
     def __init__(self, app):
         super().__init__(app)
-        self.btn_back = pygame.Rect(12, 10, 37, 37)
+        # Large hitbox — covers the entire top-left header area, easy to tap on Pi
+        self.btn_back = pygame.Rect(0, 0, 65, 58)
 
     def draw(self, surf):
         surf.blit(self.app.assets["background_2"], (0, 0))
@@ -648,7 +652,10 @@ class CollectionScreen(Screen):
             SCREEN_W // 2, 29)
         surf.blit(self.app.assets["collections_countere"], (357, 10))
         found = len(self.app.state.collected)
-        txt(surf, f"{found}/{len(FLOWERS)}", fnt(13, True), C_WHITE, 409, 29)
+        # Right-align count inside badge (badge has icon on left; number sits on right)
+        count_r = fnt(13, True).render(f"{found}/{len(FLOWERS)}", True, C_WHITE)
+        surf.blit(count_r, (357 + 104 - count_r.get_width() - 10,
+                            10 + (38 - count_r.get_height()) // 2))
 
         # 5×4 flower grid
         margin   = 5
@@ -779,9 +786,16 @@ class App:
                     if event.key in (pygame.K_RETURN, pygame.K_SPACE):
                         if hasattr(self.current, "on_tap"):
                             self.current.on_tap()
+                # Handle both mouse click and Pi touchscreen touch
+                tap_pos = None
                 if event.type == pygame.MOUSEBUTTONDOWN:
+                    tap_pos = event.pos
+                elif event.type == pygame.FINGERDOWN:
+                    # FINGERDOWN gives normalised 0-1 coords; convert to screen pixels
+                    tap_pos = (int(event.x * SCREEN_W), int(event.y * SCREEN_H))
+                if tap_pos is not None:
                     if hasattr(self.current, "on_tap"):
-                        self.current.on_tap(event.pos)
+                        self.current.on_tap(tap_pos)
 
             # ── RFID queue (only while on WaitingScreen) ───────────────────
             if isinstance(self.current, WaitingScreen):
