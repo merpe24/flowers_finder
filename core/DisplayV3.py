@@ -2,12 +2,13 @@
 FlowerFinder — DisplayV3.py
 ============================
 Hardware based on BLEmbedded.py + read.py + qr_scanner.py
-UI: dark purple theme, camera fullscreen right, flower info left panel
-Logic: no lives, time-only game over, reset button on collection
+UI: cream/pastel illustrated skin using PNG assets from /assets/
+Logic: no score, collect flowers only — +1 badge when newly found
 
-Desktop test keys: R=RFID  Q=correct QR  W=wrong QR  ENTER=tap  ESC=quit
+Desktop test keys: R=RFID  Q=correct QR  W=wrong QR  ENTER/click=tap  ESC=quit
 """
 
+import os
 import pygame
 import threading
 import math
@@ -43,42 +44,51 @@ BUZZER    = 22
 
 # ── Display config ────────────────────────────────────────────────────────────
 SCREEN_W, SCREEN_H = 480, 320
-FPS      = 60
-PANEL_W  = 130          # left info panel width
-CAM_X    = PANEL_W
-CAM_W    = SCREEN_W - PANEL_W
-CAM_H    = SCREEN_H
+FPS   = 60
+CAM_W = 350    # camera native capture width (Camera class uses this)
+CAM_H = 320    # camera native capture height
 
 # ── Game constants ────────────────────────────────────────────────────────────
-TIME_LIMIT     = 60
-POINTS_BASE    = 100
-POINTS_PER_SEC = 1
-QR_DEBOUNCE    = 1.5    # seconds between QR reads
+TIME_LIMIT  = 60
+QR_DEBOUNCE = 1.5
 
-# ── Colors ────────────────────────────────────────────────────────────────────
-C_BG      = (8,   5,  16)
-C_PANEL   = (17,  13,  40)
-C_SURFACE = (26,  16,  64)
-C_PURPLE  = (196, 181, 253)
-C_PURPLE2 = (124,  58, 237)
-C_GREEN   = ( 52, 211, 153)
-C_RED     = (239,  68,  68)
-C_RED2    = (127,  29,  29)
-C_GOLD    = (240, 190,  80)
-C_PINK    = (230, 130, 180)
-C_WHITE   = (226, 232, 240)
-C_DIM     = ( 76,  56, 128)
-C_DIM2    = ( 42,  31,  80)
-C_MID     = (156, 106, 170)
+# ── Colors (cream / pastel palette) ──────────────────────────────────────────
+C_CREAM     = (249, 245, 226)
+C_TEXT_DARK = ( 80,  60,  40)
+C_WHITE     = (255, 255, 255)
+C_DIM       = (150, 130, 100)
+C_TEAL      = (100, 195, 185)
+C_GOLD      = (200, 136,  10)
+C_RED_LOGO  = (192,  56,  32)
+C_TIMER_G   = ( 60, 180,  60)
+C_TIMER_Y   = (220, 170,  40)
+C_TIMER_R   = (200,  50,  50)
 
 # ── Flower data ───────────────────────────────────────────────────────────────
-# id must match text written on RFID card (lowercase, stripped)
+# id       — must match text written on RFID card (lowercase, stripped)
+# hint_img — filename inside /assets/ (e.g. "sunflower.jpg"), or None
+#            Same image is shown on HintScreen and CollectionScreen.
 FLOWERS = [
-    {"id":"sunflower","name":"Sunflower","hint":"Not a Rose",   "fact":"Always faces the sun!", "color":(240,190,60), "center":(180,80,20), "petals":8},
-    {"id":"rose",     "name":"Rose",     "hint":"Not Sunflower","fact":"Symbol of love!",       "color":(230,130,180),"center":(157,23,77),"petals":12},
-    {"id":"lavender", "name":"Lavender", "hint":"Not a Daisy",  "fact":"Makes you feel calm!",  "color":(167,139,250),"center":(91,33,182),"petals":6},
-    {"id":"daisy",    "name":"Daisy",    "hint":"Not Lavender", "fact":"Loves sunny fields!",   "color":(226,232,240),"center":(180,160,50),"petals":10},
-    {"id":"orchid",   "name":"Orchid",   "hint":"Not a Tulip",  "fact":"Lives 100 years!",      "color":(216,180,254),"center":(126,34,206),"petals":5},
+    {"id": "sunflower",      "name": "Sunflower",      "hint_img": None},
+    {"id": "rose",           "name": "Rose",            "hint_img": None},
+    {"id": "lavender",       "name": "Lavender",        "hint_img": None},
+    {"id": "daisy",          "name": "Daisy",           "hint_img": None},
+    {"id": "orchid",         "name": "Orchid",          "hint_img": None},
+    {"id": "tulip",          "name": "Tulip",           "hint_img": None},
+    {"id": "lily",           "name": "Lily",            "hint_img": None},
+    {"id": "jasmine",        "name": "Jasmine",         "hint_img": None},
+    {"id": "chrysanthemum",  "name": "Chrysanthemum",   "hint_img": None},
+    {"id": "peony",          "name": "Peony",           "hint_img": None},
+    {"id": "marigold",       "name": "Marigold",        "hint_img": None},
+    {"id": "iris",           "name": "Iris",            "hint_img": None},
+    {"id": "poppy",          "name": "Poppy",           "hint_img": None},
+    {"id": "dahlia",         "name": "Dahlia",          "hint_img": None},
+    {"id": "carnation",      "name": "Carnation",       "hint_img": None},
+    {"id": "hibiscus",       "name": "Hibiscus",        "hint_img": None},
+    {"id": "pansy",          "name": "Pansy",           "hint_img": None},
+    {"id": "bluebell",       "name": "Bluebell",        "hint_img": None},
+    {"id": "magnolia",       "name": "Magnolia",        "hint_img": None},
+    {"id": "zinnia",         "name": "Zinnia",          "hint_img": None},
 ]
 FLOWER_MAP = {f["id"]: f for f in FLOWERS}
 
@@ -291,25 +301,55 @@ class GameState:
     def __init__(self): self.full_reset()
 
     def full_reset(self):
-        self.flower     = None
-        self.score      = 0
-        self.collected  = []    # list of flower ids
-        self.time_bonus = 0
+        self.flower          = None
+        self.collected       = []    # list of flower ids found so far
+        self.newly_collected = False # True when current flower was just added
 
     def round_reset(self, flower):
+        self.flower          = flower
+        self.newly_collected = False
+
+    def on_correct(self, flower):
+        fid = flower["id"]
+        self.newly_collected = fid not in self.collected
+        if self.newly_collected:
+            self.collected.append(fid)
         self.flower = flower
 
-    def on_correct(self, flower, time_left):
-        self.flower     = flower
-        self.time_bonus = int(time_left * POINTS_PER_SEC)
-        self.score     += POINTS_BASE + self.time_bonus
-        if flower["id"] not in self.collected:
-            self.collected.append(flower["id"])
 
-    def stars(self):
-        if self.time_bonus > 40: return 3
-        if self.time_bonus > 20: return 2
-        return 1
+# ══════════════════════════════════════════════════════════════════════════════
+# ASSETS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def load_assets(assets_dir):
+    """Pre-load and scale all PNG assets. Returns dict keyed by filename stem."""
+    specs = {
+        "background_1":         (SCREEN_W, SCREEN_H),
+        "background_2":         (SCREEN_W, SCREEN_H),
+        "start":                (83,  30),
+        "reset":                (88,  28),
+        "collections":          (125, 28),
+        "missioncomplete":      (220, 90),
+        "wrong":                (394, 141),
+        "Group 8615":           (451, 149),
+        "timer":                (121, 121),
+        "plus_score":           (44,  44),
+        "back_button":          (37,  37),
+        "collections_countere": (104, 38),
+    }
+    assets = {}
+    for stem, size in specs.items():
+        path = os.path.join(assets_dir, stem + ".png")
+        if os.path.exists(path):
+            img = pygame.image.load(path).convert_alpha()
+            assets[stem] = pygame.transform.scale(img, size)
+        else:
+            # Placeholder rectangle so draw calls never crash
+            s = pygame.Surface(size, pygame.SRCALPHA)
+            pygame.draw.rect(s, (180, 160, 140, 120), (0, 0, size[0], size[1]),
+                             border_radius=6)
+            assets[stem] = s
+    return assets
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -320,103 +360,15 @@ def fnt(size, bold=False):
     return pygame.font.SysFont("Arial", size, bold=bold)
 
 def rnd(surf, color, r, radius=10, alpha=255):
+    """Draw a rounded rectangle with optional alpha onto surf."""
     s = pygame.Surface((r[2], r[3]), pygame.SRCALPHA)
-    pygame.draw.rect(s, (*color, alpha), (0,0,r[2],r[3]), border_radius=radius)
+    pygame.draw.rect(s, (*color, alpha), (0, 0, r[2], r[3]), border_radius=radius)
     surf.blit(s, (r[0], r[1]))
 
-def txt(surf, text, font, color, cx, cy, anchor="center"):
+def txt(surf, text, font, color, cx, cy):
+    """Blit text centered at (cx, cy)."""
     r = font.render(str(text), True, color)
-    x = cx - r.get_width()//2 if anchor == "center" else cx
-    surf.blit(r, (x, cy - r.get_height()//2))
-
-def flower(surf, cx, cy, color, center, petals=8, size=1.0, alpha=255):
-    pr = int(14*size); pd = int(18*size)
-    for i in range(petals):
-        a  = math.radians(360/petals*i)
-        px = cx + int(math.cos(a)*pd)
-        py = cy + int(math.sin(a)*pd)
-        s  = pygame.Surface((pr*2+2, pr*2+2), pygame.SRCALPHA)
-        pygame.draw.circle(s, (*color, alpha), (pr+1,pr+1), pr)
-        surf.blit(s, (px-pr-1, py-pr-1))
-    pygame.draw.circle(surf, center, (cx,cy), int(8*size))
-
-def star(surf, cx, cy, sz, filled, color):
-    pts = []
-    for i in range(10):
-        a = math.radians(-90+i*36)
-        r = sz if i%2==0 else sz*0.45
-        pts.append((cx+math.cos(a)*r, cy+math.sin(a)*r))
-    if filled: pygame.draw.polygon(surf, color, pts)
-    else:       pygame.draw.polygon(surf, color, pts, 1)
-
-def sparkles(surf, sp):
-    for x,y,a,p in sp:
-        br  = int(55+40*math.sin(a+p*6))
-        col = (br, int(br*0.4), int(br*1.3))
-        pygame.draw.circle(surf, col, (int(x),int(y)),
-                           max(1, int(1.1+math.sin(a*2+p)*0.9)))
-
-def left_panel(surf, fl, score, time_left):
-    """Draw the left info panel — used on searching + wrong screens."""
-    rnd(surf, C_PANEL, (0,0,PANEL_W,SCREEN_H), radius=0, alpha=235)
-    pygame.draw.line(surf, C_DIM2, (PANEL_W-1,0),(PANEL_W-1,SCREEN_H), 1)
-
-    txt(surf,"FIND THIS",    fnt(9),    C_DIM,    PANEL_W//2, 16)
-    flower(surf, PANEL_W//2, 70, fl["color"], fl["center"],
-           petals=fl["petals"], size=1.5)
-    txt(surf, fl["name"],    fnt(13,True),C_PURPLE, PANEL_W//2,116)
-
-    rnd(surf, C_DIM2, (6,128,PANEL_W-12,20), radius=10, alpha=200)
-    txt(surf, fl["hint"],    fnt(9),    C_MID,    PANEL_W//2,138)
-    txt(surf, fl["fact"],    fnt(9),    C_DIM,    PANEL_W//2,162)
-
-    pygame.draw.line(surf, C_DIM2, (10,178),(PANEL_W-10,178), 1)
-    txt(surf,"score",        fnt(8),    C_DIM,    PANEL_W//2,192)
-    txt(surf, str(score),    fnt(18,True),C_GOLD,  PANEL_W//2,212)
-    txt(surf,"pts",          fnt(8),    C_DIM,    PANEL_W//2,228)
-
-    pygame.draw.line(surf, C_DIM2, (10,240),(PANEL_W-10,240), 1)
-    t   = int(time_left)
-    col = C_GREEN if t > 40 else ((240,190,80) if t > 15 else C_RED)
-    txt(surf,"time left",    fnt(8),    C_DIM,    PANEL_W//2,254)
-    txt(surf, str(t),        fnt(32,True), col,   PANEL_W//2,284)
-    txt(surf,"sec",          fnt(8),    col,      PANEL_W//2,308)
-
-def camera_panel(surf, app, wrong_flash=0.0, wrong_name=""):
-    """Draw camera feed (or placeholder) on right side."""
-    frame = app.camera.get_frame()
-    if frame:
-        surf.blit(frame, (CAM_X, 0))
-    else:
-        rnd(surf, (12,18,12), (CAM_X,0,CAM_W,CAM_H), radius=0)
-        for gx in range(CAM_X, SCREEN_W, 44):
-            pygame.draw.line(surf,(18,38,18),(gx,0),(gx,CAM_H),1)
-        for gy in range(0, CAM_H, 44):
-            pygame.draw.line(surf,(18,38,18),(CAM_X,gy),(SCREEN_W,gy),1)
-        txt(surf,"[ camera feed ]",     fnt(12),(40,100,60),
-            CAM_X+CAM_W//2, CAM_H//2-12)
-        txt(surf,"Q = correct  W = wrong", fnt(10),(28,68,40),
-            CAM_X+CAM_W//2, CAM_H//2+10)
-
-    # Viewfinder corners
-    co, sz = (60,180,100), 14
-    for fx,fy in [(CAM_X+4,4),(SCREEN_W-4,4),(CAM_X+4,SCREEN_H-4),(SCREEN_W-4,SCREEN_H-4)]:
-        dx = 1 if fx < SCREEN_W//2 else -1
-        dy = 1 if fy < SCREEN_H//2 else -1
-        pygame.draw.line(surf,co,(fx,fy),(fx+sz*dx,fy),2)
-        pygame.draw.line(surf,co,(fx,fy),(fx,fy+sz*dy),2)
-
-    # Wrong flash overlay
-    if wrong_flash > 0:
-        a  = min(230, int(wrong_flash*260))
-        fl = pygame.Surface((CAM_W,50), pygame.SRCALPHA)
-        fl.fill((180,18,18,a))
-        surf.blit(fl,(CAM_X,SCREEN_H-50))
-        txt(surf,f"Not {wrong_name}!  Keep looking...",
-            fnt(13,True),(255,180,180), CAM_X+CAM_W//2, SCREEN_H-25)
-
-    txt(surf,"point camera at QR code", fnt(10),(38,95,55),
-        CAM_X+CAM_W//2, SCREEN_H-6)
+    surf.blit(r, (cx - r.get_width() // 2, cy - r.get_height() // 2))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -431,61 +383,103 @@ class Screen:
     def go(self, s): self.app.current = s
 
 
-# ── 1. Waiting for RFID ───────────────────────────────────────────────────────
+# ── 1. Waiting / Start page ───────────────────────────────────────────────────
 class WaitingScreen(Screen):
     def __init__(self, app):
         super().__init__(app)
-        self.t  = 0.0
-        self.sp = [(random.randint(10,SCREEN_W-10),
-                    random.randint(10,SCREEN_H-10),
-                    random.random()*6.28, random.random())
-                   for _ in range(14)]
+        self.started = False   # False = show buttons; True = show "tap card" prompt
+        self.t = 0.0
+        self.btn_start       = pygame.Rect(199, 156, 83,  30)
+        self.btn_reset       = pygame.Rect(196, 196, 88,  28)
+        self.btn_collections = pygame.Rect(178, 233, 125, 28)
 
     def update(self, dt):
         self.t += dt
-        self.sp = [(x,y,a+dt*0.7,p) for x,y,a,p in self.sp]
 
     def draw(self, surf):
-        surf.fill(C_BG)
-        sparkles(surf, self.sp)
+        surf.blit(self.app.assets["background_1"], (0, 0))
 
-        # Glow
-        glow = pygame.Surface((180,180),pygame.SRCALPHA)
-        pygame.draw.circle(glow,(*C_PURPLE2,16),(90,90),90)
-        surf.blit(glow,(150,28))
+        # Logo: "FLOWER" gold, "FINDER" red — centered in area (92,26) size 296×107
+        txt(surf, "FLOWER", fnt(52, True), C_GOLD,     240, 62)
+        txt(surf, "FINDER", fnt(46, True), C_RED_LOGO, 240, 110)
 
-        txt(surf,"F L O W E R  F I N D E R",fnt(10),C_DIM,SCREEN_W//2,26)
-        txt(surf,"FlowerFinder",fnt(30,True),C_PURPLE,SCREEN_W//2,58)
+        if not self.started:
+            surf.blit(self.app.assets["start"],       (199, 156))
+            surf.blit(self.app.assets["reset"],       (196, 196))
+            surf.blit(self.app.assets["collections"], (178, 233))
+        else:
+            pulse = abs(math.sin(self.t * 2.5))
+            col = (int(80 + 40 * pulse), int(60 + 20 * pulse), 40)
+            txt(surf, "Tap your RFID card", fnt(18, True), col,   240, 194)
+            txt(surf, "to start the game",  fnt(13),       C_DIM, 240, 218)
 
-        # Bobbing card
-        bob = int(math.sin(self.t*1.5)*5)
-        cx, cy = SCREEN_W//2, 146+bob
-        rnd(surf,C_PANEL,(cx-80,cy-52,160,104),radius=14,alpha=235)
-        pygame.draw.rect(surf,C_PURPLE2,(cx-80,cy-52,160,104),width=1,border_radius=14)
-        pygame.draw.rect(surf,C_GOLD,(cx-62,cy-28,26,18),border_radius=3)
-        for i,w in enumerate([70,52,60]):
-            pygame.draw.line(surf,C_DIM2,(cx-62,cy+8+i*11),(cx-62+w,cy+8+i*11),2)
-        flower(surf,cx+48,cy-8,C_PINK,(157,23,77),petals=6,size=0.55)
-
-        # Pulsing arrows
-        for i in range(3):
-            a = max(0, int(120+90*math.sin(self.t*2-i*0.6)) - i*50)
-            s = pygame.Surface((12,8),pygame.SRCALPHA)
-            pygame.draw.polygon(s,(*C_PURPLE,a),[(0,0),(12,0),(6,8)])
-            surf.blit(s,(SCREEN_W//2-6,212+i*12))
-
-        txt(surf,"แตะการ์ด RFID เพื่อเริ่มเกม",fnt(14),C_MID, SCREEN_W//2,252)
-        txt(surf,"tap your RFID card to begin",  fnt(11),C_DIM, SCREEN_W//2,270)
-
-        # Bottom bar
-        rnd(surf,C_PANEL,(0,298,SCREEN_W,22),radius=0,alpha=200)
-        found = len(self.app.state.collected)
-        txt(surf,
-            f"Score: {self.app.state.score}  |  Found: {found}/{len(FLOWERS)}  |  Top: Mia 340  Leo 280",
-            fnt(10),C_DIM,SCREEN_W//2,309)
+    def on_tap(self, pos=None):
+        if self.started:
+            return
+        if pos is None:
+            self.started = True
+            return
+        if self.btn_start.collidepoint(pos):
+            self.started = True
+        elif self.btn_reset.collidepoint(pos):
+            self.app.state.full_reset()
+        elif self.btn_collections.collidepoint(pos):
+            self.go(CollectionScreen(self.app))
 
 
-# ── 2. Searching ──────────────────────────────────────────────────────────────
+# ── 2. Hint ───────────────────────────────────────────────────────────────────
+class HintScreen(Screen):
+    GROW_TIME = 0.5   # seconds for image to fully scale in
+    HOLD_TIME = 3.5   # auto-advance after this many seconds
+
+    def __init__(self, app, fl):
+        super().__init__(app)
+        self.fl = fl
+        self.t  = 0.0
+
+    def update(self, dt):
+        self.t += dt
+        if self.t >= self.HOLD_TIME:
+            self._next()
+
+    def _next(self):
+        self.go(SearchingScreen(self.app, self.fl))
+
+    def on_tap(self, pos=None):
+        self._next()
+
+    def draw(self, surf):
+        surf.blit(self.app.assets["background_2"], (0, 0))
+
+        # Image grows in from center over GROW_TIME seconds
+        scale = min(1.0, self.t / self.GROW_TIME)
+        max_w, max_h = 200, 200
+        w = max(1, int(max_w * scale))
+        h = max(1, int(max_h * scale))
+        cx, cy = 240, 140
+
+        img = self.app.hint_imgs.get(self.fl["id"])
+        if img:
+            scaled = pygame.transform.scale(img, (w, h))
+            surf.blit(scaled, (cx - w // 2, cy - h // 2))
+        else:
+            rnd(surf, (184, 168, 136), (cx - w // 2, cy - h // 2, w, h),
+                radius=12, alpha=160)
+
+        # Flower name fades in after image is mostly visible
+        if scale > 0.4:
+            name_alpha = min(255, int((scale - 0.4) / 0.6 * 255))
+            name_r = fnt(24, True).render(self.fl["name"], True, C_TEXT_DARK)
+            name_r.set_alpha(name_alpha)
+            surf.blit(name_r, (240 - name_r.get_width() // 2, 248))
+
+        # "tap to skip →" bottom-right corner
+        skip_r = fnt(10).render("tap to skip  →", True, C_DIM)
+        surf.blit(skip_r, (SCREEN_W - skip_r.get_width() - 8,
+                            SCREEN_H - skip_r.get_height() - 6))
+
+
+# ── 3. Searching ──────────────────────────────────────────────────────────────
 class SearchingScreen(Screen):
     def __init__(self, app, fl):
         super().__init__(app)
@@ -496,17 +490,36 @@ class SearchingScreen(Screen):
         self.wrong_name  = ""
 
     def update(self, dt):
-        self.time_left = max(0, TIME_LIMIT - (time.time()-self.start_time))
-        if self.wrong_flash > 0: self.wrong_flash -= dt
+        self.time_left = max(0, TIME_LIMIT - (time.time() - self.start_time))
+        if self.wrong_flash > 0:
+            self.wrong_flash -= dt
         if self.time_left <= 0:
             timeout_sound()
             led_flash(RED_LED, 1.5)
             self.go(TimeUpScreen(self.app))
 
     def draw(self, surf):
-        surf.fill(C_BG)
-        camera_panel(surf, self.app, self.wrong_flash, self.wrong_name)
-        left_panel(surf, self.fl, self.app.state.score, self.time_left)
+        # Full-screen camera feed (scale from 350×320 → 480×320)
+        frame = self.app.camera.get_frame()
+        if frame:
+            scaled = pygame.transform.scale(frame, (SCREEN_W, SCREEN_H))
+            surf.blit(scaled, (0, 0))
+        else:
+            surf.fill((20, 30, 20))
+            txt(surf, "[ camera feed ]",        fnt(12), (40, 100, 60),
+                SCREEN_W // 2, SCREEN_H // 2 - 12)
+            txt(surf, "Q = correct  W = wrong", fnt(10), (28, 68, 40),
+                SCREEN_W // 2, SCREEN_H // 2 + 10)
+
+        # Wrong flash overlay: blit wrong.png at (43,78), fades after 2s
+        if self.wrong_flash > 0:
+            surf.blit(self.app.assets["wrong"], (43, 78))
+
+        # Timer badge top-right, number inside at ~(420, 60)
+        surf.blit(self.app.assets["timer"], (359, 0))
+        t = int(self.time_left)
+        col = C_TIMER_G if t > 40 else (C_TIMER_Y if t > 15 else C_TIMER_R)
+        txt(surf, str(t), fnt(32, True), col, 420, 60)
 
     def on_wrong(self, name):
         error_sound()
@@ -517,11 +530,11 @@ class SearchingScreen(Screen):
     def on_correct(self):
         success_sound()
         led_flash(GREEN_LED, 2.0)
-        self.app.state.on_correct(self.fl, self.time_left)
+        self.app.state.on_correct(self.fl)
         self.go(SuccessScreen(self.app))
 
 
-# ── 3. Time's Up ──────────────────────────────────────────────────────────────
+# ── 4. Time's Up ──────────────────────────────────────────────────────────────
 class TimeUpScreen(Screen):
     def __init__(self, app):
         super().__init__(app)
@@ -533,146 +546,141 @@ class TimeUpScreen(Screen):
             self.go(WaitingScreen(self.app))
 
     def draw(self, surf):
-        surf.fill(C_BG)
-        # Red glow
-        g = pygame.Surface((SCREEN_W,SCREEN_H),pygame.SRCALPHA)
-        g.fill((*C_RED2,28))
-        surf.blit(g,(0,0))
+        # Last camera frame as background, fall back to bg1
+        frame = self.app.camera.get_frame()
+        if frame:
+            scaled = pygame.transform.scale(frame, (SCREEN_W, SCREEN_H))
+            surf.blit(scaled, (0, 0))
+        else:
+            surf.blit(self.app.assets["background_1"], (0, 0))
+
+        # Slight dark overlay so text reads well over camera
+        dim = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        dim.fill((0, 0, 0, 80))
+        surf.blit(dim, (0, 0))
+
+        # GAME OVER banner at (15, 76) size 451×149
+        surf.blit(self.app.assets["Group 8615"], (15, 76))
 
         name = self.app.state.flower["name"] if self.app.state.flower else "?"
-        txt(surf,"Time's Up!",        fnt(38,True),C_RED,   SCREEN_W//2,96)
-        pygame.draw.line(surf,C_RED2,(80,116),(400,116),1)
-        txt(surf,"The flower was",    fnt(13),     C_MID,   SCREEN_W//2,146)
-        txt(surf,name,               fnt(22,True), C_WHITE, SCREEN_W//2,175)
-        txt(surf,"score",            fnt(11),      C_DIM,   SCREEN_W//2,212)
-        txt(surf,f"{self.app.state.score} pts", fnt(28,True),C_GOLD,SCREEN_W//2,246)
-        rnd(surf,C_PANEL,(160,266,160,34),radius=17,alpha=200)
-        pygame.draw.rect(surf,C_RED2,(160,266,160,34),width=1,border_radius=17)
-        txt(surf,f"returning in {max(0,int(4-self.t))}s...",
-            fnt(12),C_MID,SCREEN_W//2,283)
+        txt(surf, f"The flower was: {name}",
+            fnt(13), (240, 220, 200), SCREEN_W // 2, 246)
+        txt(surf, f"returning in {max(0, int(4 - self.t))}s...",
+            fnt(11), (200, 180, 160), SCREEN_W // 2, 300)
 
 
-# ── 4. Mission Complete ───────────────────────────────────────────────────────
+# ── 5. Mission Complete ───────────────────────────────────────────────────────
 class SuccessScreen(Screen):
     def __init__(self, app):
         super().__init__(app)
         self.t = 0.0
         self.confetti = [
-            {"x":random.randint(0,SCREEN_W),"y":random.randint(-SCREEN_H,0),
-             "vy":random.uniform(60,140),
-             "col":random.choice([C_GREEN,C_GOLD,(167,139,250),C_PINK,C_WHITE]),
-             "w":random.randint(4,10)}
+            {"x":   random.randint(0, SCREEN_W),
+             "y":   random.randint(-SCREEN_H, 0),
+             "vy":  random.uniform(60, 140),
+             "col": random.choice([C_TEAL, C_GOLD, (230, 80, 80),
+                                   (167, 139, 250), (255, 200, 100)]),
+             "w":   random.randint(4, 10)}
             for _ in range(35)
         ]
 
     def update(self, dt):
         self.t += dt
         for c in self.confetti:
-            c["y"] += c["vy"]*dt
-            if c["y"] > SCREEN_H+10: c["y"] = -10
+            c["y"] += c["vy"] * dt
+            if c["y"] > SCREEN_H + 10:
+                c["y"] = -10
 
     def draw(self, surf):
-        surf.fill(C_BG)
+        surf.blit(self.app.assets["background_2"], (0, 0))
+
         for c in self.confetti:
-            pygame.draw.rect(surf,c["col"],(int(c["x"]),int(c["y"]),c["w"],c["w"]//2))
+            pygame.draw.rect(surf, c["col"],
+                             (int(c["x"]), int(c["y"]), c["w"], c["w"] // 2))
 
-        rnd(surf,(16,185,129),(SCREEN_W-54,10,42,24),radius=12,alpha=220)
-        txt(surf,"+1",fnt(14,True),(209,250,229),SCREEN_W-33,22)
+        # +1 badge top-right, shown only when newly collected
+        if self.app.state.newly_collected:
+            surf.blit(self.app.assets["plus_score"], (418, 8))
 
+        # MISSION COMPLETE logo — left side
+        surf.blit(self.app.assets["missioncomplete"], (20, 100))
+
+        # Hint image — right side
         fl = self.app.state.flower
         if fl:
-            flower(surf,SCREEN_W//2+100,86,fl["color"],fl["center"],
-                   petals=fl["petals"],size=1.6)
+            hint = self.app.hint_imgs.get(fl["id"])
+            if hint:
+                hint_scaled = pygame.transform.scale(hint, (140, 140))
+                surf.blit(hint_scaled, (318, 85))
+            txt(surf, fl["name"], fnt(13, True), C_TEXT_DARK, 388, 238)
 
-        sc = 1.0+0.03*math.sin(self.t*3)
-        txt(surf,"MISSION",   fnt(int(24*sc),True),C_GREEN,SCREEN_W//2-40,66)
-        txt(surf,"COMPLETE!", fnt(int(24*sc),True),C_GREEN,SCREEN_W//2-40,94)
+        # Collection count
+        found = len(self.app.state.collected)
+        txt(surf, f"Collected: {found} / {len(FLOWERS)}",
+            fnt(12, True), C_TEXT_DARK, SCREEN_W // 2, 270)
 
-        if fl:
-            txt(surf,f'"{fl["name"]}"',fnt(17),C_WHITE,SCREEN_W//2-40,126)
-            txt(surf,fl["fact"],        fnt(10),C_DIM,  SCREEN_W//2-40,146)
+        txt(surf, "tap to see collection", fnt(10), C_DIM, SCREEN_W // 2, 300)
 
-        rnd(surf,C_PANEL,(80,162,260,80),radius=12,alpha=230)
-        pygame.draw.rect(surf,C_DIM2,(80,162,260,80),width=1,border_radius=12)
-        txt(surf,"your score",         fnt(9), C_DIM,  SCREEN_W//2,178)
-        txt(surf,str(self.app.state.score),fnt(30,True),C_GOLD,SCREEN_W//2,210)
-        txt(surf,f"+{self.app.state.time_bonus} time bonus",
-            fnt(9),C_DIM,SCREEN_W//2,234)
-
-        s = self.app.state.stars()
-        for i in range(3):
-            star(surf,SCREEN_W//2-24+i*24,258,9,i<s,C_GOLD)
-
-        txt(surf,"tap to see collection",fnt(10),C_DIM,SCREEN_W//2,292)
-
-    def on_tap(self):
+    def on_tap(self, pos=None):
         self.go(CollectionScreen(self.app))
 
 
-# ── 5. Flower Collection ──────────────────────────────────────────────────────
+# ── 6. Flower Collection ──────────────────────────────────────────────────────
+_COLL_COLS   = 5
+_COLL_ROWS   = 4
+_COLL_HEAD_H = 58
+
 class CollectionScreen(Screen):
     def __init__(self, app):
         super().__init__(app)
-        self.t         = 0.0
-        self.btn_play  = pygame.Rect(14, 222,212,36)
-        self.btn_reset = pygame.Rect(238,222,228,36)
-
-    def update(self, dt): self.t += dt
+        self.btn_back = pygame.Rect(12, 10, 37, 37)
 
     def draw(self, surf):
-        surf.fill(C_BG)
+        surf.blit(self.app.assets["background_2"], (0, 0))
 
-        # Header
-        rnd(surf,C_PANEL,(0,0,SCREEN_W,46),radius=0,alpha=230)
-        pygame.draw.line(surf,C_DIM2,(0,46),(SCREEN_W,46),1)
-        txt(surf,"Collection",fnt(18,True),C_PURPLE,196,24)
-
-        # Score badge
-        rnd(surf,C_PANEL,(316,8,154,30),radius=6,alpha=220)
-        pygame.draw.rect(surf,C_GOLD,(316,8,154,30),width=1,border_radius=6)
-        txt(surf,f"Score  {self.app.state.score} pts",fnt(11,True),C_GOLD,393,23)
-
-        # Progress
+        # Header: back button | FLOWER COLLECTION | counter — no separator line
+        surf.blit(self.app.assets["back_button"], (12, 10))
+        txt(surf, "FLOWER COLLECTION", fnt(13, True), C_TEXT_DARK,
+            SCREEN_W // 2, 29)
+        surf.blit(self.app.assets["collections_countere"], (357, 10))
         found = len(self.app.state.collected)
-        total = len(FLOWERS)
-        txt(surf,f"{found}/{total} found",fnt(10),C_MID,20,60,anchor="left")
-        rnd(surf,C_PANEL,(16,68,150,6),radius=3)
-        if total: rnd(surf,C_PURPLE2,(16,68,int(150*found/total),6),radius=3)
+        txt(surf, f"{found}/{len(FLOWERS)}", fnt(13, True), C_WHITE, 409, 29)
 
-        # Flower grid
-        cols, cell_w, cell_h = 5,(SCREEN_W-20)//5, 82
+        # 5×4 flower grid
+        margin   = 5
+        cell_w   = (SCREEN_W - margin * 2) // _COLL_COLS
+        cell_h   = (SCREEN_H - _COLL_HEAD_H - margin) // _COLL_ROWS
+        img_size = min(cell_w - 10, cell_h - 18, 40)
+
         for i, fl in enumerate(FLOWERS):
-            cx = 10+(i%cols)*cell_w+cell_w//2
-            cy = 94+(i//cols)*cell_h
-            ok  = fl["id"] in self.app.state.collected
-            bob = math.sin(self.t*1.5+i*0.8)*3 if ok else 0
-            rnd(surf,C_PANEL,
-                (10+(i%cols)*cell_w,82+(i//cols)*cell_h,cell_w-6,cell_h-4),
-                radius=10, alpha=210 if ok else 70)
+            col_i = i % _COLL_COLS
+            row_i = i // _COLL_COLS
+            x  = margin + col_i * cell_w
+            y  = _COLL_HEAD_H + row_i * cell_h
+            cx = x + cell_w // 2
+            ok = fl["id"] in self.app.state.collected
+
+            rnd(surf, C_WHITE, (x + 1, y + 1, cell_w - 2, cell_h - 2),
+                radius=8, alpha=180 if ok else 55)
+
             if ok:
-                flower(surf,cx,int(cy+bob),fl["color"],fl["center"],
-                       petals=fl["petals"],size=0.9)
-                txt(surf,fl["name"],fnt(9),C_PURPLE,cx,cy+38)
+                hint = self.app.hint_imgs.get(fl["id"])
+                if hint:
+                    s = pygame.transform.scale(hint, (img_size, img_size))
+                    surf.blit(s, (cx - img_size // 2, y + 2))
+                else:
+                    pygame.draw.circle(surf, C_TEAL,
+                                       (cx, y + 2 + img_size // 2), img_size // 2)
+                name_r = fnt(7, True).render(fl["name"], True, C_TEXT_DARK)
+                surf.blit(name_r, (cx - name_r.get_width() // 2,
+                                   y + cell_h - name_r.get_height() - 2))
             else:
-                flower(surf,cx,cy,C_DIM,C_DIM2,petals=fl["petals"],size=0.9,alpha=50)
-                txt(surf,"???",fnt(9),C_DIM2,cx,cy+38)
-
-        # Buttons
-        rnd(surf,C_PANEL,(14,222,212,36),radius=18,alpha=220)
-        pygame.draw.rect(surf,C_PURPLE2,(14,222,212,36),width=1,border_radius=18)
-        txt(surf,"Play again",fnt(12),C_PURPLE,120,240)
-
-        rnd(surf,C_PANEL,(238,222,228,36),radius=18,alpha=220)
-        pygame.draw.rect(surf,C_RED,(238,222,228,36),width=1,border_radius=18)
-        txt(surf,"Reset game",fnt(12),C_RED,352,240)
-
-        txt(surf,f"flowers found: {found}/{total}  |  score: {self.app.state.score} pts",
-            fnt(9),C_DIM2,SCREEN_W//2,294)
+                txt(surf, "?", fnt(18, True), (180, 160, 130), cx,
+                    y + cell_h // 2 - 4)
 
     def on_tap(self, pos=None):
-        if pos and self.btn_reset.collidepoint(pos):
-            self.app.state.full_reset()
-        self.go(WaitingScreen(self.app))
+        if pos is None or self.btn_back.collidepoint(pos):
+            self.go(WaitingScreen(self.app))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -682,16 +690,14 @@ class CollectionScreen(Screen):
 class App:
     def __init__(self):
         pygame.init()
-        self.screen  = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
         pygame.display.set_caption("FlowerFinder")
-        self.clock   = pygame.time.Clock()
-        self.state   = GameState()
+        self.clock  = pygame.time.Clock()
+        self.state  = GameState()
 
         # Init RFID first — SimpleMFRC522 calls GPIO.setmode(BCM) internally
-        # We must NOT call setmode before it, or setup pins it already owns
-        self.rfid    = RFID()
+        self.rfid = RFID()
 
-        # Now setup ONLY our own pins (LED + Buzzer)
         if HARDWARE_AVAILABLE:
             try:
                 GPIO.setmode(GPIO.BCM)
@@ -707,6 +713,24 @@ class App:
         self.camera  = Camera()
         self.qr_q    = queue.Queue()
         self.qr_scan = QRScanner(self.camera, self.qr_q)
+
+        # Load PNG assets and hint images
+        assets_dir      = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                       '..', 'assets')
+        self.assets     = load_assets(assets_dir)
+        self.hint_imgs  = {}
+        for fl in FLOWERS:
+            fn = fl.get("hint_img")
+            if fn:
+                path = os.path.join(assets_dir, fn)
+                if os.path.exists(path):
+                    img = pygame.image.load(path).convert_alpha()
+                    self.hint_imgs[fl["id"]] = pygame.transform.scale(img, (200, 200))
+                else:
+                    print(f"[Assets] hint_img not found: {path}")
+                    self.hint_imgs[fl["id"]] = None
+            else:
+                self.hint_imgs[fl["id"]] = None
 
         self.current = WaitingScreen(self)
 
@@ -728,8 +752,8 @@ class App:
 
         prev = time.time()
         while True:
-            now = time.time()
-            dt  = min(now-prev, 0.05)
+            now  = time.time()
+            dt   = min(now - prev, 0.05)
             prev = now
 
             # ── Pygame events ──────────────────────────────────────────────
@@ -741,7 +765,7 @@ class App:
                         self._quit()
                     # Desktop test shortcuts
                     if event.key == pygame.K_r:
-                        self._rfid_q.put(FLOWERS[0])
+                        self._rfid_q.put(random.choice(FLOWERS))
                     if event.key == pygame.K_q:
                         if isinstance(self.current, SearchingScreen):
                             self.current.on_correct()
@@ -749,23 +773,29 @@ class App:
                         if isinstance(self.current, SearchingScreen):
                             self.current.on_wrong("Rose")
                     if event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                        if hasattr(self.current,"on_tap"):
+                        if hasattr(self.current, "on_tap"):
                             self.current.on_tap()
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    if hasattr(self.current,"on_tap"):
+                    if hasattr(self.current, "on_tap"):
                         self.current.on_tap(event.pos)
 
-            # ── RFID queue ─────────────────────────────────────────────────
-            try:
-                fl = self._rfid_q.get_nowait()
-                self.state.round_reset(fl)
-                while not self.qr_q.empty():
-                    try: self.qr_q.get_nowait()
+            # ── RFID queue (only while on WaitingScreen) ───────────────────
+            if isinstance(self.current, WaitingScreen):
+                try:
+                    fl = self._rfid_q.get_nowait()
+                    self.state.round_reset(fl)
+                    while not self.qr_q.empty():
+                        try: self.qr_q.get_nowait()
+                        except queue.Empty: break
+                    self.current = HintScreen(self, fl)
+                    print(f"[RFID] Flower: {fl['name'].upper()}")
+                except queue.Empty:
+                    pass
+            else:
+                # Drain stale RFID reads while on other screens
+                while not self._rfid_q.empty():
+                    try: self._rfid_q.get_nowait()
                     except queue.Empty: break
-                self.current = SearchingScreen(self, fl)
-                print(f"[RFID] Flower: {fl['name'].upper()}")
-            except queue.Empty:
-                pass
 
             # ── QR queue (only while searching) ───────────────────────────
             if isinstance(self.current, SearchingScreen):
@@ -785,12 +815,12 @@ class App:
             self.current.update(dt)
             self.current.draw(self.screen)
 
-            # Dev label
-            hw = "Pi HW" if HARDWARE_AVAILABLE else "desktop: R=RFID  Q=correct  W=wrong  ENTER=tap"
-            f  = pygame.font.SysFont("Arial",10)
-            self.screen.blit(
-                f.render(f"{type(self.current).__name__}  |  {hw}  |  ESC",True,(46,36,74)),
-                (4,2))
+            # Dev label (desktop only)
+            if not HARDWARE_AVAILABLE:
+                hw  = "R=RFID  Q=correct  W=wrong  ENTER=tap  ESC=quit"
+                lbl = pygame.font.SysFont("Arial", 9).render(
+                    f"{type(self.current).__name__}  |  {hw}", True, (120, 100, 80))
+                self.screen.blit(lbl, (4, 2))
 
             pygame.display.flip()
             self.clock.tick(FPS)
