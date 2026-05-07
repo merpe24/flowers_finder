@@ -715,10 +715,10 @@ class App:
         self.qr_scan = QRScanner(self.camera, self.qr_q)
 
         # Load PNG assets and hint images
-        assets_dir      = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                       '..', 'assets')
-        self.assets     = load_assets(assets_dir)
-        self.hint_imgs  = {}
+        assets_dir     = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                      '..', 'assets')
+        self.assets    = load_assets(assets_dir)
+        self.hint_imgs = {}
         for fl in FLOWERS:
             fn = fl.get("hint_img")
             if fn:
