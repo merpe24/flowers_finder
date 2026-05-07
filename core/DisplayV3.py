@@ -70,27 +70,28 @@ C_TIMER_R   = (200,  50,  50)
 #            Same image is shown on HintScreen and CollectionScreen.
 FLOWERS = [
     # id must match the text written on the RFID card (lowercase, stripped).
+    # name = id (lowercase stripped) — used for display.
     # hint_img path is relative to /assets/.
-    {"id": "Balloon Flower",        "name": "Balloon Flower",       "hint_img": "flowers/Balloon Flower.png"},
-    {"id": "Blue Water Lily",       "name": "Blue Water Lily",      "hint_img": "flowers/Blue Water Lily.png"},
-    {"id": "Bougainvillea",         "name": "Bougainvillea",        "hint_img": "flowers/Bougainvillea.png"},
-    {"id": "Cape Jasmine",          "name": "Cape Jasmine",         "hint_img": "flowers/Cape Jasmine.png"},
-    {"id": "Celosia",               "name": "Celosia",              "hint_img": "flowers/Celosia.png"},
-    {"id": "Cosmos",                "name": "Cosmos",               "hint_img": "flowers/Cosmos.png"},
-    {"id": "Golden Shower Tree",    "name": "Golden Shower Tree",   "hint_img": "flowers/Golden Shower Tree.png"},
-    {"id": "Hibiscus",              "name": "Hibiscus",             "hint_img": "flowers/Hibiscus.png"},
-    {"id": "Hollyhock",             "name": "Hollyhock",            "hint_img": "flowers/Hollyhock.png"},
-    {"id": "Madagascar Periwinkle", "name": "Madagascar Periwinkle","hint_img": "flowers/Madagascar Periwinkle.png"},
-    {"id": "Orange Jasmine",        "name": "Orange Jasmine",       "hint_img": "flowers/Orange Jasmine.png"},
-    {"id": "Plumeria",              "name": "Plumeria",             "hint_img": "flowers/Plumeria.png"},
-    {"id": "Queen's Flower",        "name": "Queen's Flower",       "hint_img": "flowers/Queen's Flower.png"},
-    {"id": "Rain Lily",             "name": "Rain Lily",            "hint_img": "flowers/Rain Lily.png"},
-    {"id": "Red Rose",              "name": "Red Rose",             "hint_img": "flowers/Red Rose.png"},
-    {"id": "Sacred Lotus",          "name": "Sacred Lotus",         "hint_img": "flowers/Sacred Lotus.png"},
-    {"id": "Siam Tulip",            "name": "Siam Tulip",           "hint_img": "flowers/Siam Tulip.png"},
-    {"id": "Sunflower",             "name": "Sunflower",            "hint_img": "flowers/Sunflower.png"},
-    {"id": "Wrigtia Sirikitiae",    "name": "Wrigtia Sirikitiae",   "hint_img": "flowers/Wrigtia Sirikitiae.png"},
-    {"id": "Zinnia",                "name": "Zinnia",               "hint_img": "flowers/Zinnia.png"},
+    {"id": "balloon flower",        "name": "balloon flower",        "hint_img": "flowers/Balloon Flower.png"},
+    {"id": "blue water lily",       "name": "blue water lily",       "hint_img": "flowers/Blue Water Lily.png"},
+    {"id": "bougainvillea",         "name": "bougainvillea",         "hint_img": "flowers/Bougainvillea.png"},
+    {"id": "cape jasmine",          "name": "cape jasmine",          "hint_img": "flowers/Cape Jasmine.png"},
+    {"id": "celosia",               "name": "celosia",               "hint_img": "flowers/Celosia.png"},
+    {"id": "cosmos",                "name": "cosmos",                "hint_img": "flowers/Cosmos.png"},
+    {"id": "golden shower tree",    "name": "golden shower tree",    "hint_img": "flowers/Golden Shower Tree.png"},
+    {"id": "hibiscus",              "name": "hibiscus",              "hint_img": "flowers/Hibiscus.png"},
+    {"id": "hollyhock",             "name": "hollyhock",             "hint_img": "flowers/Hollyhock.png"},
+    {"id": "madagascar periwinkle", "name": "madagascar periwinkle", "hint_img": "flowers/Madagascar Periwinkle.png"},
+    {"id": "orange jasmine",        "name": "orange jasmine",        "hint_img": "flowers/Orange Jasmine.png"},
+    {"id": "plumeria",              "name": "plumeria",              "hint_img": "flowers/Plumeria.png"},
+    {"id": "queen's flower",        "name": "queen's flower",        "hint_img": "flowers/Queen's Flower.png"},
+    {"id": "rain lily",             "name": "rain lily",             "hint_img": "flowers/Rain Lily.png"},
+    {"id": "red rose",              "name": "red rose",              "hint_img": "flowers/Red Rose.png"},
+    {"id": "sacred lotus",          "name": "sacred lotus",          "hint_img": "flowers/Sacred Lotus.png"},
+    {"id": "siam tulip",            "name": "siam tulip",            "hint_img": "flowers/Siam Tulip.png"},
+    {"id": "sunflower",             "name": "sunflower",             "hint_img": "flowers/Sunflower.png"},
+    {"id": "wrigtia sirikitiae",    "name": "wrigtia sirikitiae",    "hint_img": "flowers/Wrigtia Sirikitiae.png"},
+    {"id": "zinnia",                "name": "zinnia",                "hint_img": "flowers/Zinnia.png"},
 ]
 FLOWER_MAP = {f["id"]: f for f in FLOWERS}
 
