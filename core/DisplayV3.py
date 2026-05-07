@@ -392,6 +392,8 @@ class WaitingScreen(Screen):
         self.btn_start       = pygame.Rect(199, 156, 83,  30)
         self.btn_reset       = pygame.Rect(196, 196, 88,  28)
         self.btn_collections = pygame.Rect(178, 233, 125, 28)
+        # Cancel button shown when started=True — generous hitbox centered where collections was
+        self.btn_cancel      = pygame.Rect(200, 218, 80, 58)
 
     def update(self, dt):
         self.t += dt
@@ -410,8 +412,10 @@ class WaitingScreen(Screen):
         else:
             pulse = abs(math.sin(self.t * 2.5))
             col = (int(80 + 40 * pulse), int(60 + 20 * pulse), 40)
-            txt(surf, "Tap your RFID card", fnt(18, True), col,   240, 194)
-            txt(surf, "to start the game",  fnt(13),       C_DIM, 240, 218)
+            txt(surf, "Tap your RFID card", fnt(18, True), col,   240, 185)
+            txt(surf, "to start the game",  fnt(13),       C_DIM, 240, 207)
+            # Back button centered where COLLECTIONS button was
+            surf.blit(self.app.assets["back_button"], (222, 229))
 
     def on_tap(self, pos=None):
         if self.started:
