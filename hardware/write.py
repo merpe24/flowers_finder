@@ -5,71 +5,81 @@ import time
 reader = SimpleMFRC522()
 
 print("=========================================")
-print("🟢 BATCH RFID WRITER (OVERWRITE SAFE)")
+print("🟢 BATCH RFID WRITER (READ-FIRST MODE)")
 print("🛑 Press Ctrl+C in this terminal to quit.")
 print("=========================================")
 
 try:
     while True:
-        print("\n-----------------------------------------")
-        text = input('🌺 Enter the flower name to save (e.g., rose): ')    
+        print("\n" + "="*41)
+        print("📡 1. Place a card on the reader to start...")
         
-        if not text.strip():
-            print("⚠️ Input was empty. Please enter a valid name.")
+        # --- PHASE 1: ROBUST READ ---
+        current_text = None
+        card_id = None
+        
+        # Loop endlessly until a card is successfully read
+        while True:
+            try:
+                card_id, raw_text = reader.read()
+                current_text = raw_text.strip() if raw_text else ""
+                
+                print(f"✅ Card detected! (ID: {card_id})")
+                if current_text:
+                    print(f"📄 Current data on card: '{current_text}'")
+                else:
+                    print("✨ Card is currently empty.")
+                
+                # Break out of the read loop since we succeeded
+                break 
+                
+            except Exception:
+                # If the scanner glitches, ignore the error and try reading again instantly
+                time.sleep(0.1)
+                continue 
+
+        # --- PHASE 2: GET USER INPUT ---
+        print("\n⌨️  2. KEEP THE CARD ON THE READER.")
+        text_to_write = input("Enter flower name to write (or press Enter to skip): ")
+        
+        # If you hit enter without typing, skip to the next card
+        if not text_to_write.strip():
+            print("⏭️ Skipping this card. Please remove it and get the next one.")
+            time.sleep(2)
             continue
             
-        print("📡 Place your card near the reader to check it...")
-        
-        # --- 1. THE CHECK PHASE ---
-        try:
-            # This will wait until a card is placed
-            id, current_text = reader.read()
-            
-            # If the card has data (ignoring empty spaces)
-            if current_text and current_text.strip():
-                print(f"\n⚠️ WARNING: This card is NOT empty!")
-                print(f"It currently contains: '{current_text.strip()}'")
-                
-                # Ask for permission to overwrite
-                overwrite = input("Do you want to overwrite it? (y/n): ")
-                if overwrite.lower() != 'y':
-                    print("⏭️ Skipping this card. Please remove it and get a new one.")
-                    time.sleep(1.5)
-                    continue # Skips back to asking for a flower name
-            else:
-                print("✨ Card is empty. Proceeding to write...")
-                
-        except Exception as e:
-            print(f"⚠️ Error reading card: {e}. Let's try again.")
-            time.sleep(1)
-            continue
-            
-        # --- 2. THE WRITE PHASE ---
+        # --- PHASE 3: ROBUST WRITE & VERIFY ---
+        print(f"\n✍️  3. Writing '{text_to_write}' to card...")
         success = False
-        print("\n📡 Keep the card on the reader to write...")
         
         while not success:
             try:
-                reader.write(text)
-                time.sleep(0.5)     
+                # Attempt the write
+                reader.write(text_to_write)
+                time.sleep(0.2) # Brief pause so the chip can process
                 
-                print("Verifying data...")
-                id, written_text = reader.read()
+                # Immediately try to read it back to verify
+                _, verify_text = reader.read()
                 
-                if written_text and written_text.strip() == text.strip():
-                    print(f"✅ SUCCESS! ID: {id} | Data: '{written_text.strip()}'")
-                    print("👉 You can remove this card. Ready for the next one!")
+                if verify_text and verify_text.strip() == text_to_write.strip():
+                    print(f"🎉 SUCCESS! Data verified: '{verify_text.strip()}'")
+                    print("👉 You can remove this card now. Get ready for the next one.")
                     success = True
                 else:
-                    print("❌ Auth Error or Write Failed. Keep holding the card still...")
-                    time.sleep(1.5)
+                    print("⚠️ Verification failed. Retrying... Keep card still.")
+                    time.sleep(0.5)
                     
-            except Exception as e:
-                print(f"⚠️ Error during write: {e}. Adjust the card and trying again...")
-                time.sleep(1)
+            except Exception:
+                # If it loses connection during write/read, catch it and try again
+                print("⚠️ Scanner glitch during write. Retrying... Keep card still.")
+                time.sleep(0.5)
+                
+        # Give you a brief moment to remove the card before the main loop restarts
+        time.sleep(1.5)
 
 except KeyboardInterrupt:
     print("\n\n🛑 Batch writing stopped. Quitting safely...")
 
 finally:
+    # Always clean up GPIO pins to prevent hardware locks on the next run
     GPIO.cleanup()

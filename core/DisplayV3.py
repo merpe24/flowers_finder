@@ -72,26 +72,26 @@ C_TIMER_R   = (200,  50,  50)
 # name     — display name (lowercase stripped, same as id)
 # hint_img — path relative to /assets/
 FLOWERS = [
-    {"id": "balloon flower",        "name": "balloon flower",        "hint_img": "flowers/Balloon Flower.png"},
-    {"id": "blue water lily",       "name": "blue water lily",       "hint_img": "flowers/Blue Water Lily.png"},
-    {"id": "bougainvillea",         "name": "bougainvillea",         "hint_img": "flowers/Bougainvillea.png"},
-    {"id": "cape jasmine",          "name": "cape jasmine",          "hint_img": "flowers/Cape Jasmine.png"},
-    {"id": "celosia",               "name": "celosia",               "hint_img": "flowers/Celosia.png"},
-    {"id": "cosmos",                "name": "cosmos",                "hint_img": "flowers/Cosmos.png"},
-    {"id": "golden shower tree",    "name": "golden shower tree",    "hint_img": "flowers/Golden Shower Tree.png"},
-    {"id": "hibiscus",              "name": "hibiscus",              "hint_img": "flowers/Hibiscus.png"},
-    {"id": "hollyhock",             "name": "hollyhock",             "hint_img": "flowers/Hollyhock.png"},
-    {"id": "madagascar periwinkle", "name": "madagascar periwinkle", "hint_img": "flowers/Madagascar Periwinkle.png"},
-    {"id": "orange jasmine",        "name": "orange jasmine",        "hint_img": "flowers/Orange Jasmine.png"},
-    {"id": "plumeria",              "name": "plumeria",              "hint_img": "flowers/Plumeria.png"},
-    {"id": "queen's flower",        "name": "queen's flower",        "hint_img": "flowers/Queen's Flower.png"},
-    {"id": "rain lily",             "name": "rain lily",             "hint_img": "flowers/Rain Lily.png"},
-    {"id": "red rose",              "name": "red rose",              "hint_img": "flowers/Red Rose.png"},
-    {"id": "sacred lotus",          "name": "sacred lotus",          "hint_img": "flowers/Sacred Lotus.png"},
-    {"id": "siam tulip",            "name": "siam tulip",            "hint_img": "flowers/Siam Tulip.png"},
-    {"id": "sunflower",             "name": "sunflower",             "hint_img": "flowers/Sunflower.png"},
-    {"id": "wrigtia sirikitiae",    "name": "wrigtia sirikitiae",    "hint_img": "flowers/Wrigtia Sirikitiae.png"},
-    {"id": "zinnia",                "name": "zinnia",                "hint_img": "flowers/Zinnia.png"},
+    {"id": "balloon flower",        "name": "balloon flower",        "hint_img": "Balloon Flower.png"},
+    {"id": "blue water lily",       "name": "blue water lily",       "hint_img": "Blue Water Lily.png"},
+    {"id": "bougainvillea",         "name": "bougainvillea",         "hint_img": "Bougainvillea.png"},
+    {"id": "cape jasmine",          "name": "cape jasmine",          "hint_img": "Cape Jasmine.png"},
+    {"id": "celosia",               "name": "celosia",               "hint_img": "Celosia.png"},
+    {"id": "cosmos",                "name": "cosmos",                "hint_img": "Cosmos.png"},
+    {"id": "golden shower",         "name": "golden shower",    "hint_img": "Golden Shower Tree.png"},
+    {"id": "hibiscus",              "name": "hibiscus",              "hint_img": "Hibiscus.png"},
+    {"id": "hollyhock",             "name": "hollyhock",             "hint_img": "Hollyhock.png"},
+    {"id": "madagascar periwinkle", "name": "madagascar periwinkle", "hint_img": "Madagascar Periwinkle.png"},
+    {"id": "orange jasmine",        "name": "orange jasmine",        "hint_img": "Orange Jasmine.png"},
+    {"id": "plumeria",              "name": "plumeria",              "hint_img": "Plumeria.png"},
+    {"id": "queen's flower",        "name": "queen's flower",        "hint_img": "Queen's Flower.png"},
+    {"id": "rain lily",             "name": "rain lily",             "hint_img": "Rain Lily.png"},
+    {"id": "red rose",              "name": "red rose",              "hint_img": "Red Rose.png"},
+    {"id": "sacred lotus",          "name": "sacred lotus",          "hint_img": "Sacred Lotus.png"},
+    {"id": "siam tulip",            "name": "siam tulip",            "hint_img": "Siam Tulip.png"},
+    {"id": "sunflower",             "name": "sunflower",             "hint_img": "Sunflower.png"},
+    {"id": "wrigtia sirikitiae",    "name": "wrigtia sirikitiae",    "hint_img": "Wrigtia Sirikitiae.png"},
+    {"id": "zinnia",                "name": "zinnia",                "hint_img": "Zinnia.png"},
 ]
 FLOWER_MAP = {f["id"]: f for f in FLOWERS}
 
@@ -787,8 +787,7 @@ class App:
         self.qr_q    = queue.Queue()
         self.qr_scan = QRScanner(self.camera, self.qr_q)
 
-        assets_dir     = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                      '..', 'assets')
+        assets_dir     = "/home/pie/flowers_finder/assets/Flowers"
         self.assets    = load_assets(assets_dir)
         self.hint_imgs = {}
         for fl in FLOWERS:
